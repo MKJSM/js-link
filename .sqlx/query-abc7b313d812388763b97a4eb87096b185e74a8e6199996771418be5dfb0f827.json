@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, auto_proxy, http_proxy, https_proxy, no_proxy FROM network_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "auto_proxy",
+        "ordinal": 1,
+        "type_info": "Bool"
+      },
+      {
+        "name": "http_proxy",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "https_proxy",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "no_proxy",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "abc7b313d812388763b97a4eb87096b185e74a8e6199996771418be5dfb0f827"
+}

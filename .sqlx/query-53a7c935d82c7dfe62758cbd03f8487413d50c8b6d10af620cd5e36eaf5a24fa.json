@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE network_settings SET auto_proxy = ?, http_proxy = ?, https_proxy = ?, no_proxy = ? WHERE id = 1 RETURNING id, auto_proxy, http_proxy, https_proxy, no_proxy",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "auto_proxy",
+        "ordinal": 1,
+        "type_info": "Bool"
+      },
+      {
+        "name": "http_proxy",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "https_proxy",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "no_proxy",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "53a7c935d82c7dfe62758cbd03f8487413d50c8b6d10af620cd5e36eaf5a24fa"
+}

@@ -1,0 +1,116 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE requests SET name = ?, method = ?, url = ?, body = ?, headers = ?, folder_id = ?, request_type = ?, body_type = ?, body_content = ?, auth_type = ?, auth_token = ?, auth_username = ?, auth_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING id, name, method, url, body, headers, folder_id, request_type, body_type, body_content, auth_type, auth_token, auth_username, auth_password, created_at, updated_at, archived_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "method",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "url",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "body",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "headers",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "folder_id",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "request_type",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "body_type",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "body_content",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "auth_type",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "auth_token",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "auth_username",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "auth_password",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 14,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 15,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "archived_at",
+        "ordinal": 16,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f361a08c74e0980b4a4c3568c71f6d9517d8984c3f9feb353d1e7ddf2a494406"
+}
