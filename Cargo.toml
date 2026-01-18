@@ -1,0 +1,70 @@
+[package]
+name = "js-link"
+version = "0.1.0"
+edition = "2021"
+description = "A full-featured API client for testing HTTP and WebSocket APIs"
+license = "MIT"
+repository = "https://github.com/yourusername/js-link"
+readme = "README.md"
+keywords = ["api", "http", "client", "testing", "websocket"]
+categories = ["development-tools", "web-programming"]
+
+[[bin]]
+name = "js-link"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7.5", features = ["ws"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
+tokio = { version = "1.49.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+dotenvy = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0.100"
+reqwest = { version = "0.13.1", features = ["multipart"] }
+serde_json = "1.0"
+httpmock = "0.8.2"
+tower-http = { version = "0.6.8", features = ["fs"] }
+sailfish = "0.10.1"
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
+tracing-appender = "0.2"
+tracing-log = "0.2"
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+futures-util = "0.3"
+urlencoding = "2.1"
+rust-embed = "8.0"
+mime_guess = "2.0"
+
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["full"] }
+axum-test = "15.2.0"
+serde_json = "1.0"
+
+# cargo-dist configuration for binary distribution
+[profile.release]
+lto = "thin"
+opt-level = 3
+strip = true
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Conditions for install can be found at https://github.com/axodotdev/cargo-dist/releases)
+cargo-dist-version = "0.27.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Which actions to run on pull requests
+pr-run-mode = "plan"
+# Whether to install an updater program
+install-updater = false
