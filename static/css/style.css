@@ -104,9 +104,47 @@ body {
     height: 4px;
 }
 
-.top-bar-requests::-webkit-scrollbar-thumb {
+.top-bar-request-chip {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.top-bar-request-chip:hover {
     background: var(--border-color);
-    border-radius: 4px;
+}
+
+.top-bar-request-chip.active {
+    background: var(--primary-blue);
+    color: white;
+}
+
+.top-bar-request-chip .chip-close {
+    margin-left: 8px;
+    font-size: 10px;
+    opacity: 0.5;
+    transition: all 0.2s;
+    padding: 2px;
+    border-radius: 50%;
+}
+
+.top-bar-request-chip .chip-close:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--danger);
+}
+
+.top-bar-request-chip.active .chip-close:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .search-bar {
@@ -232,6 +270,7 @@ body {
     border-right: 1px solid var(--border-color);
     flex-shrink: 0;
     position: relative;
+    overflow-y: auto;
 }
 
 /* Collapsible Sidebar Sections */
@@ -300,6 +339,23 @@ body {
     justify-content: center;
     min-width: 24px;
     min-height: 24px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.sidebar-section-actions .icon-btn:hover {
+    color: var(--white);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.light-mode .sidebar-section-actions .icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
 }
 
 .sidebar-section-content {
@@ -360,6 +416,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
 }
 
 .history-item-time {

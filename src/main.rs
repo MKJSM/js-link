@@ -2,6 +2,8 @@ mod db;
 mod environments;
 mod executor;
 mod folders;
+mod import_api;
+mod importers;
 mod network;
 mod requests;
 mod websocket;
@@ -115,7 +117,8 @@ async fn main() {
                 .merge(environments::routes(pool.clone()))
                 .merge(network::routes(pool.clone()))
                 .merge(executor::routes(pool.clone()))
-                .merge(websocket::routes(pool)),
+                .merge(websocket::routes(pool.clone()))
+                .merge(import_api::routes(pool)),
         )
         .route("/static/*path", get(static_handler));
 

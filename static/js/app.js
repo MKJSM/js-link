@@ -8,6 +8,7 @@ let executionHistory = [];
 let showArchived = false;
 let wsConnection = null;
 let wsConnected = false;
+let pendingImportFile = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -146,9 +147,6 @@ function setupEventListeners() {
     // Send request
     document.getElementById('send-request-btn').addEventListener('click', sendRequest);
 
-    // New request
-    document.getElementById('new-request-btn').addEventListener('click', () => openRequestModal());
-
     // Method change handler for WebSocket mode
     document.getElementById('request-method').addEventListener('change', handleMethodChange);
 
@@ -169,6 +167,9 @@ function setupEventListeners() {
         if (envActions) {
             if (currentEnvironmentId) {
                 envActions.style.display = 'flex';
+                // Hide archive button for now
+                const archiveBtn = document.getElementById('archive-environment-btn');
+                if (archiveBtn) archiveBtn.style.display = 'none';
             } else {
                 envActions.style.display = 'none';
             }
@@ -191,11 +192,13 @@ function setupEventListeners() {
                 icon: 'fas fa-edit',
                 action: () => editEnvironment(envId)
             },
+            /*
             {
                 label: isArchived ? 'Unarchive' : 'Archive',
                 icon: isArchived ? 'fas fa-archive' : 'fas fa-archive',
                 action: () => isArchived ? unarchiveEnvironment(envId) : archiveEnvironment(envId)
             },
+            */
             {
                 label: 'Delete',
                 icon: 'fas fa-trash',
@@ -234,6 +237,15 @@ function setupEventListeners() {
             e.preventDefault();
             openRequestModal();
         });
+    }
+
+    // Import button
+    setupImportHandler();
+    
+    // Confirm Import button
+    const confirmImportBtn = document.getElementById('confirm-import-btn');
+    if (confirmImportBtn) {
+        confirmImportBtn.addEventListener('click', confirmImport);
     }
 
     // Close modals on overlay click
@@ -333,6 +345,16 @@ function setupEventListeners() {
         envVariablesTextarea.addEventListener('focus', handleEnvVariablesFocus);
         envVariablesTextarea.addEventListener('blur', handleEnvVariablesBlur);
     }
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                closeModal(activeModal.id);
+            }
+        }
+    });
 }
 
 // Load folders and build collection tree
@@ -444,8 +466,10 @@ function buildCollectionTree() {
                     requestItem.style.opacity = '0.6';
                 }
                 const requestName = escapeHtml(request.name);
+                const methodClass = request.method || 'GET';
                 requestItem.innerHTML = `
                     <div class="collection-item-name">
+                        <span class="history-item-method ${methodClass}" style="margin-right: 8px; font-size: 9px; padding: 1px 4px; min-width: 35px;">${methodClass}</span>
                         <span>${requestName.includes('>') ? `<b>${requestName}</b>` : requestName}</span>
                     </div>
                     <div class="collection-item-actions">
@@ -465,11 +489,13 @@ function buildCollectionTree() {
                             icon: 'fas fa-edit',
                             action: () => editRequest(request.id)
                         },
+                        /*
                         {
                             label: isArchived ? 'Unarchive' : 'Archive',
                             icon: isArchived ? 'fas fa-archive' : 'fas fa-archive',
                             action: () => isArchived ? unarchiveRequest(request.id) : archiveRequest(request.id)
                         },
+                        */
                         {
                             label: 'Delete',
                             icon: 'fas fa-trash',
@@ -524,11 +550,13 @@ function buildCollectionTree() {
                         icon: 'fas fa-edit',
                         action: () => editFolder(folderId)
                     },
+                    /*
                     {
                         label: isArchived ? 'Unarchive' : 'Archive',
                         icon: isArchived ? 'fas fa-archive' : 'fas fa-archive',
                         action: () => isArchived ? unarchiveFolder(folderId) : archiveFolder(folderId)
                     },
+                    */
                     {
                         label: 'Delete',
                         icon: 'fas fa-trash',
@@ -550,8 +578,10 @@ function buildCollectionTree() {
             const requestItem = document.createElement('li');
             requestItem.className = 'collection-item collection-sub-item';
             const requestName = escapeHtml(request.name);
+            const methodClass = request.method || 'GET';
             requestItem.innerHTML = `
                 <div class="collection-item-name">
+                    <span class="history-item-method ${methodClass}" style="margin-right: 8px; font-size: 9px; padding: 1px 4px; min-width: 35px;">${methodClass}</span>
                     <span>${requestName.includes('>') ? `<b>${requestName}</b>` : requestName}</span>
                 </div>
                 <div class="collection-item-actions">
@@ -580,11 +610,13 @@ function buildCollectionTree() {
                         icon: 'fas fa-edit',
                         action: () => editRequest(request.id)
                     },
+                    /*
                     {
                         label: isArchived ? 'Unarchive' : 'Archive',
                         icon: 'fas fa-archive',
                         action: () => isArchived ? unarchiveRequest(request.id) : archiveRequest(request.id)
                     },
+                    */
                     {
                         label: 'Delete',
                         icon: 'fas fa-trash',
@@ -708,143 +740,90 @@ function loadRequestIntoEditor(request) {
     currentRequestId = request.id;
 }
 
-// Update top bar requests display
-function updateTopBarRequests() {
-    const topBarRequests = document.getElementById('top-bar-requests');
-    if (!topBarRequests) return;
-
-    const openTabs = document.querySelectorAll('[data-request-id]');
-
-    // Clear current display
-    topBarRequests.innerHTML = '';
-
-    if (openTabs.length === 0) {
-        topBarRequests.innerHTML = '<span style="color: var(--text-secondary); font-size: 13px;">No requests open</span>';
-        return;
-    }
-
-    // Add each open request as a chip
-    openTabs.forEach(tab => {
-        const requestId = tab.getAttribute('data-request-id');
-        const requestName = tab.querySelector('span')?.textContent || 'Untitled';
-        const isActive = tab.classList.contains('active');
-
-        const chip = document.createElement('div');
-        chip.className = 'top-bar-request-chip' + (isActive ? ' active' : '');
-        chip.style.cssText = `
-            padding: 6px 12px;
-            background: ${isActive ? 'var(--primary-blue)' : 'var(--bg-tertiary)'};
-            color: ${isActive ? 'white' : 'var(--text-primary)'};
-            border-radius: 6px;
-            font-size: 13px;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
-        `;
-        chip.textContent = requestName;
-        chip.onclick = () => {
-            tab.click();
-        };
-
-        topBarRequests.appendChild(chip);
-    });
-}
-
-// Add request tab
+// Add request tab (now rendering as chip in top bar)
 function addRequestTab(request) {
-    if (!request || !request.id) {
-        console.error('addRequestTab: Invalid request object', request);
-        return;
-    }
+    if (!request || !request.id) return;
 
-    const container = document.getElementById('request-tabs-container');
-    if (!container) {
-        console.error('addRequestTab: Container not found');
-        return;
-    }
+    const container = document.getElementById("top-bar-requests");
+    if (!container) return;
 
-    let tab = document.querySelector(`[data-request-id="${request.id}"]`);
+    let chip = container.querySelector(`[data-request-id="${request.id}"]`);
 
-    if (!tab) {
-        tab = document.createElement('button');
-        tab.className = 'request-tab';
-        tab.dataset.requestId = request.id;
-        const requestName = request.name || 'Untitled Request';
-        tab.innerHTML = `
+    if (!chip) {
+        chip = document.createElement("div");
+        chip.className = "top-bar-request-chip";
+        chip.dataset.requestId = request.id;
+        
+        const requestName = request.name || "Untitled";
+        chip.innerHTML = `
             <span>${escapeHtml(requestName)}</span>
-            <i class="fas fa-times request-tab-close"></i>
+            <i class="fas fa-times chip-close" style="margin-left: 8px; font-size: 10px; opacity: 0.6; cursor: pointer;"></i>
         `;
 
-        const closeBtn = tab.querySelector('.request-tab-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                closeRequestTab(request.id);
-                return false;
-            });
-            // Also handle click on the icon itself
-            const icon = closeBtn.querySelector('i') || closeBtn;
-            if (icon !== closeBtn) {
-                icon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    closeRequestTab(request.id);
-                    return false;
-                });
-            }
-        }
-
-        tab.addEventListener('click', (e) => {
-            // Don't select if clicking on close button or icon
-            if (e.target.closest('.request-tab-close') || e.target.classList.contains('fa-times')) {
-                return;
-            }
+        // Handle chip click
+        chip.addEventListener("click", (e) => {
+            if (e.target.closest(".chip-close")) return;
             selectRequest(request.id);
         });
-        container.appendChild(tab);
+
+        // Handle close click
+        const closeBtn = chip.querySelector(".chip-close");
+        closeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeRequestTab(request.id);
+        });
+
+        container.appendChild(chip);
     } else {
-        // Update tab name if it exists
-        console.log('Updating existing tab name to:', request.name);
-        const span = tab.querySelector('span');
-        if (span) {
-            span.textContent = request.name || 'Untitled Request';
-        }
+        // Update name
+        const span = chip.querySelector("span");
+        if (span) span.textContent = request.name || "Untitled";
     }
 
-    // Activate this tab
-    document.querySelectorAll('.request-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-
-    // Ensure tab is visible
-    tab.style.display = '';
-
-    // Update top bar display
-    updateTopBarRequests();
+    // Deactivate others and activate this one
+    container.querySelectorAll(".top-bar-request-chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
 }
 
-// Close request tab
+// Close request tab (removing chip)
 function closeRequestTab(requestId) {
-    const tab = document.querySelector(`[data-request-id="${requestId}"]`);
-    if (tab) {
-        // Remove from DOM
-        tab.remove();
-        // Also remove from container if it's still there
-        const container = document.getElementById('request-tabs-container');
-        if (container && container.contains(tab)) {
-            container.removeChild(tab);
-        }
+    const container = document.getElementById("top-bar-requests");
+    if (!container) return;
+
+    const chip = container.querySelector(`[data-request-id="${requestId}"]`);
+    if (chip) {
+        chip.remove();
     }
+
     if (currentRequestId === requestId) {
         currentRequestId = null;
         clearEditor();
-    }
 
-    // Update top bar display
-    updateTopBarRequests();
+        // Select last open request if any
+        const remaining = container.querySelectorAll(".top-bar-request-chip");
+        if (remaining.length > 0) {
+            const lastId = remaining[remaining.length - 1].dataset.requestId;
+            selectRequest(lastId);
+        }
+    }
 }
 
-// Modal Functions
+// Update top bar requests display
+function updateTopBarRequests() {
+    const container = document.getElementById("top-bar-requests");
+    if (!container) return;
+
+    // Ensure current request chip is active
+    container.querySelectorAll(".top-bar-request-chip").forEach(chip => {
+        const chipRequestId = parseInt(chip.dataset.requestId);
+        if (chipRequestId === currentRequestId) {
+            chip.classList.add("active");
+        } else {
+            chip.classList.remove("active");
+        }
+    });
+}
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -2395,7 +2374,7 @@ function setupPanelResizer() {
         const newResponseHeight = startResponseHeight - deltaY;
 
         const minHeight = 150;
-        const maxRequestHeight = mainContent.offsetHeight - minHeight - 100;
+        const maxRequestHeight = panelsContainer.offsetHeight - minHeight - 100;
 
         if (newRequestHeight >= minHeight && newRequestHeight <= maxRequestHeight &&
             newResponseHeight >= minHeight) {
@@ -3008,11 +2987,13 @@ function buildHistoryTree() {
                     icon: 'fas fa-edit',
                     action: () => editRequest(request.id)
                 },
+                /*
                 {
                     label: isArchived ? 'Unarchive' : 'Archive',
-                    icon: 'fas fa-archive',
+                    icon: isArchived ? 'fas fa-archive' : 'fas fa-archive',
                     action: () => isArchived ? unarchiveRequest(request.id) : archiveRequest(request.id)
                 },
+                */
                 {
                     label: 'Delete',
                     icon: 'fas fa-trash',
@@ -3041,4 +3022,114 @@ function getTimeAgo(date) {
     if (diffDays < 7) return `${diffDays}d ago`;
 
     return date.toLocaleDateString();
+}
+
+// Import Handler
+function setupImportHandler() {
+    const importBtn = document.getElementById('import-btn');
+    const importFileInput = document.getElementById('import-file-input');
+
+    if (importBtn && importFileInput) {
+        importBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openModal('import-modal');
+        });
+
+        importFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImport(e.target.files[0]);
+                // Reset value so same file can be imported again if needed
+                importFileInput.value = '';
+            }
+        });
+    }
+}
+
+async function handleImport(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Show loading...
+    showNotification(`Analyzing ${file.name}...`, 'info');
+
+    try {
+        // Request preview
+        const response = await fetch('/api/import?preview=true', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            
+            if (result.collections && result.collections.length > 0) {
+                // Store file for confirmation
+                pendingImportFile = file;
+                
+                // Populate preview list
+                const listContainer = document.getElementById('import-preview-list');
+                listContainer.innerHTML = '';
+                
+                result.collections.forEach(col => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);';
+                    item.innerHTML = `
+                        <div style="font-weight: 500; color: var(--text-primary);">
+                            <i class="fas fa-folder" style="color: var(--primary-blue); margin-right: 8px;"></i>
+                            ${escapeHtml(col.name)}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 8px; border-radius: 10px;">
+                            ${col.request_count} requests
+                        </div>
+                    `;
+                    listContainer.appendChild(item);
+                });
+                
+                // Open confirmation modal
+                closeModal('import-modal'); // Ensure previous modal is closed
+                openModal('import-confirmation-modal');
+            } else {
+                showNotification('No valid collections/requests found in file', 'error');
+            }
+        } else {
+            const error = await response.text();
+            showNotification(`Import analysis failed: ${error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error during import analysis:', error);
+        showNotification(`Error during import analysis: ${error.message}`, 'error');
+    }
+}
+
+async function confirmImport() {
+    if (!pendingImportFile) return;
+    
+    const formData = new FormData();
+    formData.append('file', pendingImportFile);
+    
+    // Close modal immediately and show loading
+    closeModal('import-confirmation-modal');
+    showNotification('Importing collections...', 'info');
+    
+    try {
+        const response = await fetch('/api/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showNotification(result.message || 'Import successful');
+            // Refresh UI
+            await loadFolders();
+            await loadRequests(null, showArchived);
+            pendingImportFile = null;
+        } else {
+            const error = await response.text();
+            showNotification(`Import failed: ${error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error during import:', error);
+        showNotification(`Error during import: ${error.message}`, 'error');
+    }
 }

@@ -40,3 +40,4 @@ logs/
 settings.local.json
 todo.md
 designs/
+.import/

@@ -44,12 +44,14 @@
                         <span>Collection</span>
                     </div>
                     <div class="sidebar-section-actions">
-                        <button type="button" class="icon-btn" id="new-folder-btn" title="New Folder"
-                            style="background: transparent; border: none; color: rgba(255, 255, 255, 0.6); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+                        <button type="button" class="icon-btn" id="import-btn" title="Import (Postman/Insomnia/Thunder Client)">
+                            <i class="fas fa-file-import"></i>
+                        </button>
+                        <input type="file" id="import-file-input" style="display: none;" accept=".json,.yaml,.yml">
+                        <button type="button" class="icon-btn" id="new-folder-btn" title="New Folder">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button type="button" class="icon-btn" id="new-request-sidebar-btn" title="New Request"
-                            style="background: transparent; border: none; color: rgba(255, 255, 255, 0.6); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+                        <button type="button" class="icon-btn" id="new-request-sidebar-btn" title="New Request">
                             <i class="fas fa-plus-square"></i>
                         </button>
                     </div>
@@ -79,16 +81,6 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Request Tabs -->
-            <div class="request-tabs-bar">
-                <button class="new-request-btn" id="new-request-btn">
-                    <i class="fas fa-plus"></i> New Request
-                </button>
-                <div id="request-tabs-container">
-                    <!-- Request tabs will be added here -->
-                </div>
-            </div>
-
             <!-- Panels Container (for layout switching) -->
             <div class="panels-container" id="panels-container">
                 <!-- Request Editor -->
@@ -533,6 +525,120 @@
             <div class="form-actions">
                 <button class="btn btn-outline" onclick="closeModal('environment-modal')">Cancel</button>
                 <button class="btn btn-primary" onclick="saveEnvironment()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Import Collection</h3>
+                <button class="modal-close" onclick="closeModal('import-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);">Select a file to import your collection. Supported formats:</p>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #FF6C37; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Postman</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">v2.1 Collection JSON</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #5849BE; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-moon"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Insomnia</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">YAML or JSON Export</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #3b82f6; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Thunder Client</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Collection JSON</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" 
+                    onclick="document.getElementById('import-file-input').click(); closeModal('import-modal');">
+                    <i class="fas fa-file-upload"></i> Choose File to Import
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Import Collection</h3>
+                <button class="modal-close" onclick="closeModal('import-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);">Select a file to import your collection. Supported formats:</p>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #FF6C37; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Postman</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">v2.1 Collection JSON</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #5849BE; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-moon"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Insomnia</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">YAML or JSON Export</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: #3b82f6; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">Thunder Client</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Collection JSON</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;" 
+                    onclick="document.getElementById('import-file-input').click(); closeModal('import-modal');">
+                    <i class="fas fa-file-upload"></i> Choose File to Import
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Confirmation Modal -->
+    <div class="modal-overlay" id="import-confirmation-modal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Import</h3>
+                <button class="modal-close" onclick="closeModal('import-confirmation-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);">The following collections will be created:</p>
+                <div id="import-preview-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; background: var(--bg-tertiary); border-radius: 6px; padding: 8px;">
+                    <!-- Preview items will be injected here -->
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline" onclick="closeModal('import-confirmation-modal')">Cancel</button>
+                    <button class="btn btn-primary" id="confirm-import-btn">
+                        <i class="fas fa-file-import"></i> Import Collections
+                    </button>
+                </div>
             </div>
         </div>
     </div>

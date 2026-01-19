@@ -1,10 +1,10 @@
 [package]
 name = "js-link"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A full-featured API client for testing HTTP and WebSocket APIs"
 license = "MIT"
-repository = "https://github.com/yourusername/js-link"
+repository = "https://github.com/MKJSM/js-link"
 readme = "README.md"
 keywords = ["api", "http", "client", "testing", "websocket"]
 categories = ["development-tools", "web-programming"]
@@ -14,8 +14,12 @@ name = "js-link"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.7.5", features = ["ws"] }
-sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
+axum = { version = "0.7.5", features = ["multipart", "ws"] }
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio-native-tls",
+    "sqlite",
+    "chrono",
+] }
 tokio = { version = "1.49.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 dotenvy = "0.15"
@@ -28,7 +32,11 @@ tower-http = { version = "0.6.8", features = ["fs"] }
 sailfish = "0.10.1"
 log = "0.4"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "time",
+    "local-time",
+] }
 tracing-appender = "0.2"
 tracing-log = "0.2"
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
@@ -36,6 +44,7 @@ futures-util = "0.3"
 urlencoding = "2.1"
 rust-embed = "8.0"
 mime_guess = "2.0"
+serde_yaml = "0.9.34"
 
 
 [dev-dependencies]
@@ -63,7 +72,12 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+]
 # Which actions to run on pull requests
 pr-run-mode = "plan"
 # Whether to install an updater program

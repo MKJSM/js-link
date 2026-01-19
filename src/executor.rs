@@ -316,9 +316,28 @@ async fn execute_request_handler(
         .map(|h| substitute_variables(h, &variables))
         .transpose()?;
 
+    let resolved_auth_token = request
+        .auth_token
+        .as_ref()
+        .map(|t| substitute_variables(t, &variables))
+        .transpose()?;
+    let resolved_auth_username = request
+        .auth_username
+        .as_ref()
+        .map(|u| substitute_variables(u, &variables))
+        .transpose()?;
+    let resolved_auth_password = request
+        .auth_password
+        .as_ref()
+        .map(|p| substitute_variables(p, &variables))
+        .transpose()?;
+
     request.url = resolved_url.clone();
     request.body = resolved_body.clone();
     request.headers = resolved_headers.clone();
+    request.auth_token = resolved_auth_token;
+    request.auth_username = resolved_auth_username;
+    request.auth_password = resolved_auth_password;
 
     log::debug!("Resolved URL: {}", request.url);
     if let Some(ref body) = resolved_body {

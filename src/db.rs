@@ -13,6 +13,7 @@ pub async fn create_pool() -> Result<DbPool, sqlx::Error> {
 
     let connection_options = SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true)
+        .foreign_keys(true)
         .journal_mode(SqliteJournalMode::Wal);
 
     let pool = SqlitePoolOptions::new()
