@@ -1076,17 +1076,22 @@ async function saveRequestFromModal() {
 
     try {
         let response;
+        // Determine request type and final method from modal values
+        const isWS = method === 'WS';
+        const requestType = isWS ? 'ws' : 'api';
+        const finalMethod = isWS ? '' : method;
+
         if (requestId) {
             // Update existing - need to get current request first
             const currentRequest = requests.find(r => r.id === requestId);
-            const requestTypeSelect = document.getElementById('request-type');
-            const requestType = requestTypeSelect ? requestTypeSelect.value : (currentRequest?.request_type || 'api');
+            // const requestTypeSelect = document.getElementById('request-type');
+            // const requestType = requestTypeSelect ? requestTypeSelect.value : (currentRequest?.request_type || 'api');
             response = await fetch(`/api/requests/${requestId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
-                    method: method,
+                    method: finalMethod,
                     url: url,
                     body: currentRequest?.body || null,
                     headers: currentRequest?.headers || null,
@@ -1095,15 +1100,15 @@ async function saveRequestFromModal() {
                 })
             });
         } else {
-            // Create new - get request_type from main editor if available
-            const requestTypeSelect = document.getElementById('request-type');
-            const requestType = requestTypeSelect ? requestTypeSelect.value : 'api';
+            // Create new
+            // const requestTypeSelect = document.getElementById('request-type');
+            // const requestType = requestTypeSelect ? requestTypeSelect.value : 'api';
             response = await fetch('/api/requests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
-                    method: method,
+                    method: finalMethod,
                     url: url,
                     body: null,
                     headers: null,
@@ -1554,12 +1559,36 @@ async function sendRequest() {
     const body = document.getElementById('request-body').value;
     const headers = getHeaders();
 
+    // Get auth details for history
+    const authTypeSelect = document.getElementById('auth-type-select');
+    const authType = authTypeSelect ? authTypeSelect.value : 'none';
+    let authToken = '';
+    let authUsername = '';
+    let authPassword = '';
+
+    if (authType === 'bearer') {
+        const tokenInput = document.getElementById('auth-bearer-token');
+        authToken = tokenInput ? tokenInput.value : '';
+    } else if (authType === 'basic') {
+        const usernameInput = document.getElementById('auth-basic-username');
+        const passwordInput = document.getElementById('auth-basic-password');
+        authUsername = usernameInput ? usernameInput.value : '';
+        authPassword = passwordInput ? passwordInput.value : '';
+    }
+
+    // Get body type
+    const bodyTypeSelect = document.getElementById('body-type-select');
+    const bodyType = bodyTypeSelect ? bodyTypeSelect.value : 'none';
+
+    // Get request type
+    const requestTypeSelect = document.getElementById('request-type');
+    const requestType = requestTypeSelect ? requestTypeSelect.value : 'api';
+
     // Add auth headers based on auth type selection
     const authHeaders = getAuthHeaders();
     Object.assign(headers, authHeaders);
 
     // Set Content-Type based on body type selection
-    const bodyTypeSelect = document.getElementById('body-type-select');
     if (bodyTypeSelect && bodyTypeSelect.value !== 'none' && body) {
         headers['Content-Type'] = getContentTypeHeader();
     }
@@ -1574,6 +1603,9 @@ async function sendRequest() {
         showNotification('Please enter a valid URL', 'error');
         return;
     }
+
+    // Store original URL before variable substitution for history
+    const originalUrl = url;
 
     // Substitute variables
     if (currentEnvironmentId) {
@@ -1619,7 +1651,20 @@ async function sendRequest() {
 
         const result = await response.json();
         displayResponse(result);
-        addToExecutionHistory(url);
+
+        // Add to execution history with full request details
+        addToExecutionHistory({
+            url: originalUrl,
+            method: method,
+            body: body,
+            headers: getHeaders(), // Store original headers without auth
+            bodyType: bodyType,
+            authType: authType,
+            authToken: authToken,
+            authUsername: authUsername,
+            authPassword: authPassword,
+            requestType: requestType
+        });
 
         // Save request if it exists
         if (currentRequestId) {
@@ -1856,12 +1901,23 @@ async function saveRequest() {
     }
 }
 
-// Add to execution history
-function addToExecutionHistory(url) {
-    executionHistory.unshift({
-        url: url,
+// Add to execution history with full request details
+function addToExecutionHistory(requestDetails) {
+    const historyItem = {
+        url: requestDetails.url,
+        method: requestDetails.method || 'GET',
+        body: requestDetails.body || '',
+        headers: requestDetails.headers || {},
+        bodyType: requestDetails.bodyType || 'none',
+        authType: requestDetails.authType || 'none',
+        authToken: requestDetails.authToken || '',
+        authUsername: requestDetails.authUsername || '',
+        authPassword: requestDetails.authPassword || '',
+        requestType: requestDetails.requestType || 'api',
         timestamp: new Date()
-    });
+    };
+
+    executionHistory.unshift(historyItem);
 
     // Keep only last 10
     if (executionHistory.length > 10) {
@@ -1882,12 +1938,90 @@ function updateExecutionHistory() {
     executionHistory.forEach(item => {
         const li = document.createElement('li');
         li.className = 'history-item';
-        li.textContent = item.url;
+
+        // Display method and URL for better identification
+        const method = item.method || 'GET';
+        const requestType = item.requestType || 'api';
+        const url = item.url || '';
+        
+        const methodClass = requestType === 'ws' ? 'WS' : method;
+
+        li.innerHTML = `
+            <span class="history-item-method ${methodClass}">${methodClass}</span>
+            <span class="history-item-name" title="${escapeHtml(url)}">${escapeHtml(url)}</span>
+        `;
+
         li.addEventListener('click', () => {
-            document.getElementById('request-url').value = item.url;
+            loadHistoryItemIntoEditor(item);
         });
         historyList.appendChild(li);
     });
+}
+
+// Load history item into editor with all details
+function loadHistoryItemIntoEditor(item) {
+    // Clear current request ID since this is from history
+    currentRequestId = null;
+
+    // Set request type (API or WebSocket)
+    const typeSelect = document.getElementById('request-type');
+    if (typeSelect) {
+        typeSelect.value = item.requestType || 'api';
+        typeSelect.dispatchEvent(new Event('change'));
+    }
+
+    // Set method and URL
+    document.getElementById('request-method').value = item.method || 'GET';
+    document.getElementById('request-url').value = item.url || '';
+
+    // Load body type
+    const bodyTypeSelect = document.getElementById('body-type-select');
+    if (bodyTypeSelect) {
+        bodyTypeSelect.value = item.bodyType || 'none';
+        bodyTypeSelect.dispatchEvent(new Event('change'));
+    }
+
+    // Load body content
+    const bodyTextarea = document.getElementById('request-body');
+    if (bodyTextarea) {
+        bodyTextarea.value = item.body || '';
+    }
+
+    // Load authentication
+    const authTypeSelect = document.getElementById('auth-type-select');
+    if (authTypeSelect) {
+        authTypeSelect.value = item.authType || 'none';
+        authTypeSelect.dispatchEvent(new Event('change'));
+    }
+
+    if (item.authType === 'bearer' && item.authToken) {
+        const tokenInput = document.getElementById('auth-bearer-token');
+        if (tokenInput) tokenInput.value = item.authToken;
+    } else if (item.authType === 'basic') {
+        const usernameInput = document.getElementById('auth-basic-username');
+        const passwordInput = document.getElementById('auth-basic-password');
+        if (usernameInput) usernameInput.value = item.authUsername || '';
+        if (passwordInput) passwordInput.value = item.authPassword || '';
+    }
+
+    // Load headers
+    const tbody = document.getElementById('headers-tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+
+        if (item.headers && typeof item.headers === 'object') {
+            Object.entries(item.headers).forEach(([key, value]) => {
+                addHeaderRow(key, value);
+            });
+        }
+        addHeaderRow('', ''); // Empty row for new header
+    }
+
+    // Deactivate all request tabs since we're loading from history
+    const container = document.getElementById("top-bar-requests");
+    if (container) {
+        container.querySelectorAll(".top-bar-request-chip").forEach(c => c.classList.remove("active"));
+    }
 }
 
 // Load execution history (from localStorage or API)
@@ -1899,16 +2033,11 @@ function loadExecutionHistory() {
             updateExecutionHistory();
         } catch (e) {
             console.error('Error loading execution history:', e);
+            executionHistory = [];
         }
     } else {
-        // Add some default history items for demo
-        executionHistory = [
-            { url: 'https://api.example.com/v1/users', timestamp: new Date() },
-            { url: 'https://api.example.com/v1/users', timestamp: new Date() },
-            { url: 'https://api.example.com/v1/users', timestamp: new Date() },
-            { url: 'https://api.example.com/v1/users', timestamp: new Date() },
-            { url: 'https://api.example.com/v1/users', timestamp: new Date() }
-        ];
+        // Start with empty history on first load
+        executionHistory = [];
         updateExecutionHistory();
     }
 }
@@ -2754,7 +2883,10 @@ function getContentTypeHeader() {
     }
 }
 
-// FIX: Added cleanup for existing connections
+// Store current WebSocket request details for history
+let currentWsRequestDetails = null;
+
+// FIX: Added cleanup for existing connections and auth/headers support
 function connectWebSocket() {
     const url = document.getElementById('request-url').value.trim();
 
@@ -2774,6 +2906,40 @@ function connectWebSocket() {
         wsConnection.close();
     }
 
+    // Get headers
+    const headers = getHeaders();
+
+    // Get auth details
+    const authTypeSelect = document.getElementById('auth-type-select');
+    const authType = authTypeSelect ? authTypeSelect.value : 'none';
+    let authToken = null;
+    let authUsername = null;
+    let authPassword = null;
+
+    if (authType === 'bearer') {
+        const tokenInput = document.getElementById('auth-bearer-token');
+        authToken = tokenInput ? tokenInput.value : null;
+    } else if (authType === 'basic') {
+        const usernameInput = document.getElementById('auth-basic-username');
+        const passwordInput = document.getElementById('auth-basic-password');
+        authUsername = usernameInput ? usernameInput.value : null;
+        authPassword = passwordInput ? passwordInput.value : null;
+    }
+
+    // Store request details for history
+    currentWsRequestDetails = {
+        url: url,
+        method: 'WS',
+        body: '',
+        headers: headers,
+        bodyType: 'none',
+        authType: authType,
+        authToken: authToken || '',
+        authUsername: authUsername || '',
+        authPassword: authPassword || '',
+        requestType: 'ws'
+    };
+
     updateWsStatus('connecting', 'Connecting...');
 
     // Connect to our backend WebSocket proxy
@@ -2781,11 +2947,17 @@ function connectWebSocket() {
     wsConnection = new WebSocket(wsUrl);
 
     wsConnection.onopen = () => {
-        // Send connect message to proxy
-        wsConnection.send(JSON.stringify({
+        // Send connect message to proxy with headers and auth
+        const connectMessage = {
             type: 'connect',
-            url: url
-        }));
+            url: url,
+            headers: Object.keys(headers).length > 0 ? headers : null,
+            auth_type: authType !== 'none' ? authType : null,
+            auth_token: authToken,
+            auth_username: authUsername,
+            auth_password: authPassword
+        };
+        wsConnection.send(JSON.stringify(connectMessage));
     };
 
     wsConnection.onmessage = (event) => {
@@ -2819,6 +2991,14 @@ function handleWsServerMessage(msg) {
             updateWsStatus('connected', `Connected to ${msg.url}`);
             updateWsButtonVisibility();
             addWsMessage('info', `Connected to ${msg.url}`);
+            // Add to execution history when successfully connected
+            if (currentWsRequestDetails) {
+                addToExecutionHistory(currentWsRequestDetails);
+                // Save the WebSocket request if it has an ID
+                if (currentRequestId) {
+                    saveRequest();
+                }
+            }
             break;
         case 'disconnected':
             wsConnected = false;

@@ -1,6 +1,6 @@
 [package]
 name = "js-link"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "A full-featured API client for testing HTTP and WebSocket APIs"
 license = "MIT"
@@ -41,6 +41,7 @@ tracing-appender = "0.2"
 tracing-log = "0.2"
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures-util = "0.3"
+base64 = "0.22"
 urlencoding = "2.1"
 rust-embed = "8.0"
 mime_guess = "2.0"

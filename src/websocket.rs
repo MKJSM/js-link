@@ -9,9 +9,17 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessage};
+use tokio_tungstenite::{
+    connect_async_with_config,
+    tungstenite::{
+        client::IntoClientRequest,
+        http::HeaderValue,
+        Message as TungsteniteMessage,
+    },
+};
 
 use crate::db::DbPool;
 
@@ -19,7 +27,19 @@ use crate::db::DbPool;
 #[serde(tag = "type")]
 pub enum WsClientMessage {
     #[serde(rename = "connect")]
-    Connect { url: String },
+    Connect {
+        url: String,
+        #[serde(default)]
+        headers: Option<HashMap<String, String>>,
+        #[serde(default)]
+        auth_type: Option<String>,
+        #[serde(default)]
+        auth_token: Option<String>,
+        #[serde(default)]
+        auth_username: Option<String>,
+        #[serde(default)]
+        auth_password: Option<String>,
+    },
     #[serde(rename = "disconnect")]
     Disconnect,
     #[serde(rename = "send")]
@@ -111,7 +131,14 @@ async fn handle_client_message(
     to_client_tx: &mpsc::Sender<WsServerMessage>,
 ) {
     match msg {
-        WsClientMessage::Connect { url } => {
+        WsClientMessage::Connect {
+            url,
+            headers,
+            auth_type,
+            auth_token,
+            auth_username,
+            auth_password,
+        } => {
             log::info!("Connecting to WebSocket: {}", url);
 
             // Close existing connection if any
@@ -121,8 +148,74 @@ async fn handle_client_message(
                 state.connected_url = None;
             }
 
-            // Connect to the remote WebSocket
-            match connect_async(&url).await {
+            // Build request with headers
+            let request = match url.clone().into_client_request() {
+                Ok(mut req) => {
+                    // Add custom headers
+                    if let Some(hdrs) = headers {
+                        for (key, value) in hdrs {
+                            if let (Ok(header_name), Ok(header_value)) = (
+                                key.parse::<tokio_tungstenite::tungstenite::http::header::HeaderName>(),
+                                HeaderValue::from_str(&value),
+                            ) {
+                                req.headers_mut().insert(header_name, header_value);
+                            }
+                        }
+                    }
+
+                    // Add auth headers
+                    if let Some(auth) = auth_type {
+                        match auth.as_str() {
+                            "bearer" => {
+                                if let Some(token) = auth_token {
+                                    if let Ok(header_value) =
+                                        HeaderValue::from_str(&format!("Bearer {}", token))
+                                    {
+                                        req.headers_mut().insert(
+                                            tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
+                                            header_value,
+                                        );
+                                    }
+                                }
+                            }
+                            "basic" => {
+                                if let (Some(username), Some(password)) =
+                                    (auth_username, auth_password)
+                                {
+                                    use base64::Engine;
+                                    let credentials =
+                                        base64::engine::general_purpose::STANDARD.encode(format!(
+                                            "{}:{}",
+                                            username, password
+                                        ));
+                                    if let Ok(header_value) =
+                                        HeaderValue::from_str(&format!("Basic {}", credentials))
+                                    {
+                                        req.headers_mut().insert(
+                                            tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
+                                            header_value,
+                                        );
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    req
+                }
+                Err(e) => {
+                    log::error!("Failed to create WebSocket request: {}", e);
+                    let _ = to_client_tx
+                        .send(WsServerMessage::Error {
+                            message: format!("Invalid WebSocket URL: {}", e),
+                        })
+                        .await;
+                    return;
+                }
+            };
+
+            // Connect to the remote WebSocket with headers
+            match connect_async_with_config(request, None, false).await {
                 Ok((ws_stream, _)) => {
                     let (mut write, mut read) = ws_stream.split();
 

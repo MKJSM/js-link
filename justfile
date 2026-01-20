@@ -11,3 +11,6 @@ test:
 # This command checks the code for errors
 check:
     cargo check
+
+watch:
+    cargo watch -w src -w static -w templates -x run
