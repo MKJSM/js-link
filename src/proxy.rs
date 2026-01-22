@@ -159,19 +159,73 @@ pub fn detect_proxy(target_url: &str) -> Option<ProxyConfig> {
     None
 }
 
-/// Check if a URL should bypass the proxy based on NO_PROXY
+/// Check if a host is a private/local IP address that should bypass proxy
+fn is_private_ip(host: &str) -> bool {
+    // Check for localhost
+    if host == "localhost" || host == "localhost.localdomain" {
+        return true;
+    }
+
+    // Try to parse as IP address
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        let octets = ip.octets();
+        // 10.0.0.0/8 - Class A private network
+        if octets[0] == 10 {
+            return true;
+        }
+        // 172.16.0.0/12 - Class B private network (172.16.0.0 - 172.31.255.255)
+        if octets[0] == 172 && (16..=31).contains(&octets[1]) {
+            return true;
+        }
+        // 192.168.0.0/16 - Class C private network
+        if octets[0] == 192 && octets[1] == 168 {
+            return true;
+        }
+        // 127.0.0.0/8 - Loopback
+        if octets[0] == 127 {
+            return true;
+        }
+        // 169.254.0.0/16 - Link-local
+        if octets[0] == 169 && octets[1] == 254 {
+            return true;
+        }
+    }
+
+    // Check for IPv6 loopback and link-local
+    if let Ok(ip) = host.parse::<std::net::Ipv6Addr>() {
+        // ::1 loopback
+        if ip.is_loopback() {
+            return true;
+        }
+        // fe80::/10 link-local
+        let segments = ip.segments();
+        if segments[0] & 0xffc0 == 0xfe80 {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check if a URL should bypass the proxy based on NO_PROXY or private IP
 fn should_bypass_proxy(target_url: &str) -> bool {
+    // Extract host from URL
+    let host = extract_host(target_url);
+    if host.is_empty() {
+        return false;
+    }
+
+    // Always bypass proxy for private/local IP addresses
+    if is_private_ip(&host) {
+        log::debug!("Host {} is a private/local IP, bypassing proxy", host);
+        return true;
+    }
+
     let no_proxy = env::var("NO_PROXY")
         .or_else(|_| env::var("no_proxy"))
         .unwrap_or_default();
 
     if no_proxy.is_empty() {
-        return false;
-    }
-
-    // Extract host from URL
-    let host = extract_host(target_url);
-    if host.is_empty() {
         return false;
     }
 
@@ -521,5 +575,49 @@ mod tests {
     fn test_extract_host() {
         assert_eq!(extract_host("ws://example.com:8080/path"), "example.com");
         assert_eq!(extract_host("wss://secure.example.com/path"), "secure.example.com");
+    }
+
+    #[test]
+    fn test_is_private_ip() {
+        // Localhost
+        assert!(is_private_ip("localhost"));
+        assert!(is_private_ip("127.0.0.1"));
+        assert!(is_private_ip("127.0.0.2"));
+
+        // 10.x.x.x private network
+        assert!(is_private_ip("10.0.0.1"));
+        assert!(is_private_ip("10.10.1.5"));
+        assert!(is_private_ip("10.255.255.255"));
+
+        // 172.16-31.x.x private network
+        assert!(is_private_ip("172.16.0.1"));
+        assert!(is_private_ip("172.31.255.255"));
+        assert!(!is_private_ip("172.15.0.1")); // Outside range
+        assert!(!is_private_ip("172.32.0.1")); // Outside range
+
+        // 192.168.x.x private network
+        assert!(is_private_ip("192.168.0.1"));
+        assert!(is_private_ip("192.168.1.100"));
+
+        // Link-local
+        assert!(is_private_ip("169.254.0.1"));
+
+        // Public IPs should not be private
+        assert!(!is_private_ip("8.8.8.8"));
+        assert!(!is_private_ip("1.1.1.1"));
+        assert!(!is_private_ip("example.com"));
+    }
+
+    #[test]
+    fn test_bypass_proxy_for_private_ip() {
+        // Private IPs should bypass proxy
+        assert!(should_bypass_proxy("ws://10.10.1.5:8080/ws"));
+        assert!(should_bypass_proxy("ws://192.168.1.100:3000/"));
+        assert!(should_bypass_proxy("ws://localhost:8080/"));
+        assert!(should_bypass_proxy("wss://127.0.0.1:443/"));
+
+        // Public addresses should not automatically bypass
+        assert!(!should_bypass_proxy("wss://example.com/ws"));
+        assert!(!should_bypass_proxy("ws://8.8.8.8:80/"));
     }
 }
