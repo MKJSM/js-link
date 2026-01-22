@@ -5,6 +5,7 @@ mod folders;
 mod import_api;
 mod importers;
 mod network;
+mod proxy;
 mod requests;
 mod websocket;
 

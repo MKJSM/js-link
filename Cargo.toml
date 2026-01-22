@@ -40,6 +40,10 @@ tracing-subscriber = { version = "0.3", features = [
 tracing-appender = "0.2"
 tracing-log = "0.2"
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+tokio-socks = "0.5"
+native-tls = "0.2"
+dirs = "5.0"
+dirs = "5.0"
 futures-util = "0.3"
 base64 = "0.22"
 urlencoding = "2.1"

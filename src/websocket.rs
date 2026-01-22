@@ -13,15 +13,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::{
-    connect_async_with_config,
+    client_async_tls_with_config,
     tungstenite::{
         client::IntoClientRequest,
         http::HeaderValue,
         Message as TungsteniteMessage,
     },
+    Connector,
 };
 
 use crate::db::DbPool;
+use crate::proxy::{connect_with_proxy, detect_proxy};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -214,8 +216,65 @@ async fn handle_client_message(
                 }
             };
 
-            // Connect to the remote WebSocket with headers
-            match connect_async_with_config(request, None, false).await {
+            // Check and inform about proxy configuration
+            if let Some(proxy_config) = detect_proxy(&url) {
+                let proxy_type = match proxy_config.proxy_type {
+                    crate::proxy::ProxyType::Http => "HTTP",
+                    crate::proxy::ProxyType::Https => "HTTPS",
+                    crate::proxy::ProxyType::Socks4 => "SOCKS4",
+                    crate::proxy::ProxyType::Socks5 => "SOCKS5",
+                };
+                let _ = to_client_tx
+                    .send(WsServerMessage::Info {
+                        message: format!(
+                            "Using {} proxy at {}:{}",
+                            proxy_type, proxy_config.host, proxy_config.port
+                        ),
+                    })
+                    .await;
+            } else {
+                let _ = to_client_tx
+                    .send(WsServerMessage::Info {
+                        message: "Using direct connection (no proxy detected)".to_string(),
+                    })
+                    .await;
+            }
+
+            // Connect through proxy (if configured) or directly
+            let proxy_stream = match connect_with_proxy(&url).await {
+                Ok(stream) => stream,
+                Err(e) => {
+                    log::error!("Failed to establish connection: {}", e);
+                    let _ = to_client_tx
+                        .send(WsServerMessage::Error {
+                            message: format!("Connection failed: {}", e),
+                        })
+                        .await;
+                    return;
+                }
+            };
+
+            // Determine if we need TLS (for wss://)
+            let is_wss = url.starts_with("wss://");
+            let connector = if is_wss {
+                match native_tls::TlsConnector::new() {
+                    Ok(tls) => Some(Connector::NativeTls(tls)),
+                    Err(e) => {
+                        log::error!("Failed to create TLS connector: {}", e);
+                        let _ = to_client_tx
+                            .send(WsServerMessage::Error {
+                                message: format!("TLS initialization failed: {}", e),
+                            })
+                            .await;
+                        return;
+                    }
+                }
+            } else {
+                None
+            };
+
+            // Upgrade the connection to WebSocket
+            match client_async_tls_with_config(request, proxy_stream, None, connector).await {
                 Ok((ws_stream, _)) => {
                     let (mut write, mut read) = ws_stream.split();
 
