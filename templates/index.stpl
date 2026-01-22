@@ -259,18 +259,6 @@
                                     <i class="fas fa-paper-plane"></i> Send Message
                                 </button>
                             </div>
-                            <div class="ws-messages-section">
-                                <div class="ws-messages-header">
-                                    <h4>Messages</h4>
-                                    <button class="btn btn-outline" id="ws-clear-btn"
-                                        style="padding: 4px 8px; font-size: 12px;">
-                                        <i class="fas fa-trash"></i> Clear
-                                    </button>
-                                </div>
-                                <div class="ws-messages" id="ws-messages">
-                                    <!-- WebSocket messages will appear here -->
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -315,6 +303,7 @@
                     <button class="response-tab" data-tab="response-headers">Headers</button>
                     <button class="response-tab hidden" data-tab="response-preview" id="response-preview-tab">Preview</button>
                     <button class="response-tab" data-tab="response-timeline">Timeline</button>
+                    <button class="response-tab hidden" data-tab="response-ws-messages" id="response-ws-tab">Messages</button>
                 </div>
 
                 <div class="response-content">
@@ -338,6 +327,19 @@
                     </div>
                     <div id="response-timeline" class="response-tab-pane">
                         <pre style="color: var(--text-secondary); padding: 20px;">Send a request to see timeline</pre>
+                    </div>
+                    <div id="response-ws-messages" class="response-tab-pane">
+                        <div class="ws-response-messages-container">
+                            <div class="ws-response-messages-header">
+                                <span class="ws-response-messages-title">Messages (newest first)</span>
+                                <button class="btn btn-outline" id="ws-clear-btn" style="padding: 4px 8px; font-size: 12px;">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                            </div>
+                            <div class="ws-response-messages" id="ws-response-messages">
+                                <!-- WebSocket messages will appear here in descending order -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

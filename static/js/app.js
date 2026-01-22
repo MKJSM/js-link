@@ -2615,6 +2615,13 @@ function handleRequestTypeChange(e) {
     const bodyTab = document.querySelector('[data-tab="body"]');
     const urlInput = document.getElementById('request-url');
 
+    // Response panel tabs
+    const wsResponseTab = document.getElementById('response-ws-tab');
+    const responseBodyTab = document.querySelector('.response-tab[data-tab="response-body"]');
+    const responseHeadersTab = document.querySelector('.response-tab[data-tab="response-headers"]');
+    const responseTimelineTab = document.querySelector('.response-tab[data-tab="response-timeline"]');
+    const responsePreviewTab = document.getElementById('response-preview-tab');
+
     if (requestType === 'ws') {
         // WebSocket mode
         typeSelect.classList.add('ws-type');
@@ -2623,6 +2630,16 @@ function handleRequestTypeChange(e) {
         wsConnectBtn.classList.remove('hidden');
         wsTab.classList.remove('hidden');
         if (bodyTab) bodyTab.classList.add('hidden');
+
+        // Show only WebSocket Messages tab in response panel, hide others
+        if (wsResponseTab) wsResponseTab.classList.remove('hidden');
+        if (responseBodyTab) responseBodyTab.classList.add('hidden');
+        if (responseHeadersTab) responseHeadersTab.classList.add('hidden');
+        if (responseTimelineTab) responseTimelineTab.classList.add('hidden');
+        if (responsePreviewTab) responsePreviewTab.classList.add('hidden');
+
+        // Switch to WebSocket Messages tab
+        switchResponseTab('response-ws-messages');
 
         // Update URL placeholder
         urlInput.placeholder = 'Enter WebSocket URL (ws:// or wss://)';
@@ -2642,6 +2659,16 @@ function handleRequestTypeChange(e) {
         wsDisconnectBtn.classList.add('hidden');
         wsTab.classList.add('hidden');
         if (bodyTab) bodyTab.classList.remove('hidden');
+
+        // Show API response tabs, hide WebSocket Messages tab
+        if (wsResponseTab) wsResponseTab.classList.add('hidden');
+        if (responseBodyTab) responseBodyTab.classList.remove('hidden');
+        if (responseHeadersTab) responseHeadersTab.classList.remove('hidden');
+        if (responseTimelineTab) responseTimelineTab.classList.remove('hidden');
+        // Preview tab visibility depends on content type, leave as is
+
+        // Switch to Body tab
+        switchResponseTab('response-body');
 
         // Update URL placeholder
         urlInput.placeholder = 'Enter request URL';
@@ -3052,7 +3079,7 @@ function sendWebSocketMessage() {
 }
 
 function addWsMessage(type, content) {
-    const messagesContainer = document.getElementById('ws-messages');
+    const messagesContainer = document.getElementById('ws-response-messages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `ws-message ${type}`;
 
@@ -3080,12 +3107,14 @@ function addWsMessage(type, content) {
         <div class="ws-message-content">${escapeHtml(content)}</div>
     `;
 
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    // Prepend message for descending order (newest first)
+    messagesContainer.insertBefore(messageDiv, messagesContainer.firstChild);
+    // Scroll to top to show newest message
+    messagesContainer.scrollTop = 0;
 }
 
 function clearWebSocketMessages() {
-    const messagesContainer = document.getElementById('ws-messages');
+    const messagesContainer = document.getElementById('ws-response-messages');
     messagesContainer.innerHTML = '';
 }
 

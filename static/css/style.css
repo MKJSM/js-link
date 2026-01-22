@@ -1282,6 +1282,46 @@ body.light-mode .sidebar-section {
     white-space: nowrap;
 }
 
+/* WebSocket Response Panel Messages */
+.ws-response-messages-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ws-response-messages-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.ws-response-messages-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.ws-response-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+}
+
+#response-ws-messages {
+    padding: 0;
+    height: 100%;
+}
+
+#response-ws-messages.active {
+    display: flex;
+    flex-direction: column;
+}
+
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
