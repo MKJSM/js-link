@@ -10,6 +10,10 @@ let wsConnection = null;
 let wsConnected = false;
 let pendingImportFile = null;
 
+// CodeMirror editor instances
+let requestBodyEditor = null;
+let wsMessageEditor = null;
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     loadFolders();
@@ -21,12 +25,182 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTheme();
     setupEnvironmentToggle();
     setupLayoutToggle();
+    setupCodeMirrorEditors();
     // Initialize variable preview with defaults
     setTimeout(() => {
         updateVariablePreview();
         buildHistoryTree();
     }, 500);
 });
+
+// Setup CodeMirror editors for JSON editing
+function setupCodeMirrorEditors() {
+    // Common CodeMirror configuration for JSON
+    const jsonEditorConfig = {
+        mode: { name: 'javascript', json: true },
+        theme: document.body.classList.contains('light-mode') ? 'default' : 'dracula',
+        lineNumbers: true,
+        lineWrapping: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        tabSize: 2,
+        indentWithTabs: false,
+        inputStyle: 'contenteditable',
+        spellcheck: false,
+        autocorrect: false,
+        autocapitalize: false,
+        extraKeys: {
+            'Ctrl-Space': 'autocomplete',
+            'Tab': (cm) => {
+                if (cm.somethingSelected()) {
+                    cm.indentSelection('add');
+                } else {
+                    cm.replaceSelection('  ', 'end');
+                }
+            },
+            'Ctrl-Enter': () => {
+                // Send request or WebSocket message based on context
+                const activeElement = document.activeElement;
+                if (activeElement && activeElement.closest('#ws-message-editor')) {
+                    sendWebSocketMessage();
+                } else {
+                    sendRequest();
+                }
+            }
+        },
+        hintOptions: {
+            completeSingle: false
+        }
+    };
+
+    // Initialize request body editor
+    const requestBodyContainer = document.getElementById('request-body-editor');
+    if (requestBodyContainer && typeof CodeMirror !== 'undefined') {
+        requestBodyEditor = CodeMirror(requestBodyContainer, {
+            ...jsonEditorConfig,
+            placeholder: 'Enter request body (JSON)...',
+            viewportMargin: Infinity
+        });
+
+        // Sync with hidden textarea
+        requestBodyEditor.on('change', () => {
+            const textarea = document.getElementById('request-body');
+            if (textarea) {
+                textarea.value = requestBodyEditor.getValue();
+            }
+        });
+
+        // Enable autocomplete on typing
+        requestBodyEditor.on('inputRead', (cm, change) => {
+            if (change.text[0] && /[a-zA-Z"{]/.test(change.text[0])) {
+                cm.showHint({ hint: jsonHint, completeSingle: false });
+            }
+        });
+
+        // Click on wrapper to focus editor
+        requestBodyContainer.addEventListener('click', () => {
+            requestBodyEditor.focus();
+        });
+
+        // Refresh editor after a short delay to fix sizing
+        setTimeout(() => requestBodyEditor.refresh(), 100);
+    }
+
+    // Initialize WebSocket message editor
+    const wsMessageContainer = document.getElementById('ws-message-editor');
+    if (wsMessageContainer && typeof CodeMirror !== 'undefined') {
+        wsMessageEditor = CodeMirror(wsMessageContainer, {
+            ...jsonEditorConfig,
+            lineNumbers: false,
+            placeholder: 'Enter message to send (JSON)...',
+            viewportMargin: Infinity
+        });
+
+        // Sync with hidden textarea
+        wsMessageEditor.on('change', () => {
+            const textarea = document.getElementById('ws-message-input');
+            if (textarea) {
+                textarea.value = wsMessageEditor.getValue();
+            }
+        });
+
+        // Enable autocomplete on typing
+        wsMessageEditor.on('inputRead', (cm, change) => {
+            if (change.text[0] && /[a-zA-Z"{]/.test(change.text[0])) {
+                cm.showHint({ hint: jsonHint, completeSingle: false });
+            }
+        });
+
+        // Click on wrapper to focus editor
+        wsMessageContainer.addEventListener('click', () => {
+            wsMessageEditor.focus();
+        });
+
+        // Refresh editor after a short delay to fix sizing
+        setTimeout(() => wsMessageEditor.refresh(), 100);
+    }
+}
+
+// JSON autocomplete hint function
+function jsonHint(cm) {
+    const cursor = cm.getCursor();
+    const token = cm.getTokenAt(cursor);
+    const line = cm.getLine(cursor.line);
+
+    // Get the current word being typed
+    const start = token.start;
+    const end = cursor.ch;
+    const currentWord = token.string;
+
+    // JSON keywords and common patterns
+    const keywords = [
+        'true', 'false', 'null'
+    ];
+
+    // Common JSON keys
+    const commonKeys = [
+        '"id"', '"name"', '"email"', '"username"', '"password"',
+        '"title"', '"description"', '"content"', '"body"',
+        '"status"', '"type"', '"value"', '"data"',
+        '"message"', '"error"', '"success"', '"result"',
+        '"items"', '"count"', '"total"', '"page"', '"limit"',
+        '"created_at"', '"updated_at"', '"timestamp"',
+        '"url"', '"method"', '"headers"', '"params"'
+    ];
+
+    let list = [];
+
+    // If we're at the start of a value or after a colon, suggest values
+    if (token.type === null || token.string === ':' || token.string.trim() === '') {
+        list = [...keywords, '""', '[]', '{}', '0'];
+    }
+    // If we're typing a string that looks like a key
+    else if (token.type === 'string' && line.indexOf(':') === -1 ||
+             (token.type === 'string' && cursor.ch < line.indexOf(':'))) {
+        list = commonKeys.filter(k => k.toLowerCase().includes(currentWord.toLowerCase().replace(/"/g, '')));
+    }
+    // If typing a keyword
+    else if (token.type === 'atom' || (token.type === null && currentWord.match(/^[a-z]/i))) {
+        list = keywords.filter(k => k.startsWith(currentWord.toLowerCase()));
+    }
+
+    return {
+        list: list,
+        from: CodeMirror.Pos(cursor.line, start),
+        to: CodeMirror.Pos(cursor.line, end)
+    };
+}
+
+// Update CodeMirror theme when app theme changes
+function updateCodeMirrorTheme(isDark) {
+    const theme = isDark ? 'dracula' : 'default';
+    if (requestBodyEditor) {
+        requestBodyEditor.setOption('theme', theme);
+    }
+    if (wsMessageEditor) {
+        wsMessageEditor.setOption('theme', theme);
+    }
+}
 
 // Setup theme
 function setupTheme() {
@@ -44,6 +218,8 @@ function setupTheme() {
             icon.classList.remove('fa-moon');
             icon.classList.add('fa-sun');
         }
+        // Update CodeMirror editor themes
+        updateCodeMirrorTheme(theme === 'dark');
     };
 
     let currentTheme = localStorage.getItem('theme') || 'dark';
@@ -690,13 +866,12 @@ function loadRequestIntoEditor(request) {
     }
 
     // Load body content - prioritize body_content over legacy body
-    const bodyTextarea = document.getElementById('request-body');
-    if (request.body_content) {
-        bodyTextarea.value = request.body_content;
-    } else if (request.body) {
-        bodyTextarea.value = request.body;
+    const bodyContent = request.body_content || request.body || '';
+    if (requestBodyEditor) {
+        requestBodyEditor.setValue(bodyContent);
     } else {
-        bodyTextarea.value = '';
+        const bodyTextarea = document.getElementById('request-body');
+        bodyTextarea.value = bodyContent;
     }
 
     // Load authentication
@@ -1309,7 +1484,11 @@ document.head.appendChild(style);
 function clearEditor() {
     document.getElementById('request-method').value = 'GET';
     document.getElementById('request-url').value = '';
-    document.getElementById('request-body').value = '';
+    if (requestBodyEditor) {
+        requestBodyEditor.setValue('');
+    } else {
+        document.getElementById('request-body').value = '';
+    }
     document.getElementById('headers-tbody').innerHTML = '';
     addHeaderRow('', '');
 }
@@ -1556,7 +1735,7 @@ function substituteVariables(template, variables) {
 async function sendRequest() {
     const method = document.getElementById('request-method').value;
     let url = document.getElementById('request-url').value.trim();
-    const body = document.getElementById('request-body').value;
+    const body = requestBodyEditor ? requestBodyEditor.getValue() : document.getElementById('request-body').value;
     const headers = getHeaders();
 
     // Get auth details for history
@@ -1843,7 +2022,7 @@ async function saveRequest() {
 
     const method = document.getElementById('request-method').value;
     const url = document.getElementById('request-url').value;
-    const body = document.getElementById('request-body').value;
+    const body = requestBodyEditor ? requestBodyEditor.getValue() : document.getElementById('request-body').value;
     const headers = JSON.stringify(getHeaders());
     const requestTypeSelect = document.getElementById('request-type');
     const bodyTypeSelect = document.getElementById('body-type-select');
@@ -1982,9 +2161,14 @@ function loadHistoryItemIntoEditor(item) {
     }
 
     // Load body content
-    const bodyTextarea = document.getElementById('request-body');
-    if (bodyTextarea) {
-        bodyTextarea.value = item.body || '';
+    const bodyContent = item.body || '';
+    if (requestBodyEditor) {
+        requestBodyEditor.setValue(bodyContent);
+    } else {
+        const bodyTextarea = document.getElementById('request-body');
+        if (bodyTextarea) {
+            bodyTextarea.value = bodyContent;
+        }
     }
 
     // Load authentication
@@ -2762,17 +2946,23 @@ function handleBodyTypeChange(e) {
 
 // Format request body (JSON with 4 spaces)
 function formatRequestBody() {
-    const bodyTextarea = document.getElementById('request-body');
     const bodyTypeSelect = document.getElementById('body-type-select');
-
-    if (!bodyTextarea || !bodyTextarea.value.trim()) return;
-
     const bodyType = bodyTypeSelect ? bodyTypeSelect.value : 'json';
+
+    // Use CodeMirror editor if available
+    const content = requestBodyEditor ? requestBodyEditor.getValue() : document.getElementById('request-body')?.value;
+
+    if (!content || !content.trim()) return;
 
     if (bodyType === 'json') {
         try {
-            const parsed = JSON.parse(bodyTextarea.value);
-            bodyTextarea.value = JSON.stringify(parsed, null, 4);
+            const parsed = JSON.parse(content);
+            const formatted = JSON.stringify(parsed, null, 2);
+            if (requestBodyEditor) {
+                requestBodyEditor.setValue(formatted);
+            } else {
+                document.getElementById('request-body').value = formatted;
+            }
             showNotification('JSON formatted successfully', 'success');
         } catch (e) {
             showNotification('Invalid JSON: ' + e.message, 'error');
@@ -3057,8 +3247,7 @@ function disconnectWebSocket() {
 }
 
 function sendWebSocketMessage() {
-    const messageInput = document.getElementById('ws-message-input');
-    const message = messageInput.value.trim();
+    const message = wsMessageEditor ? wsMessageEditor.getValue().trim() : document.getElementById('ws-message-input').value.trim();
 
     if (!message) {
         showNotification('Please enter a message to send', 'error');
@@ -3075,7 +3264,12 @@ function sendWebSocketMessage() {
         message: message
     }));
 
-    messageInput.value = '';
+    // Clear the editor
+    if (wsMessageEditor) {
+        wsMessageEditor.setValue('');
+    } else {
+        document.getElementById('ws-message-input').value = '';
+    }
 }
 
 function addWsMessage(type, content) {

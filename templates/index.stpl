@@ -7,6 +7,11 @@
     <title>JS-Link</title>
     <link href="/static/css/style.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.css">
 </head>
 
 <body>
@@ -206,9 +211,8 @@
                                 <i class="fas fa-indent"></i> Format
                             </button>
                         </div>
-                        <textarea id="request-body"
-                            style="width: 100%; min-height: 300px; padding: 12px; border: 1px solid var(--border-color); border-radius: 4px; font-family: 'Fira Code', 'Courier New', monospace; font-size: 13px; tab-size: 4;"
-                            placeholder="Request body (JSON, XML, etc.)"></textarea>
+                        <div id="request-body-editor" class="codemirror-wrapper"></div>
+                        <textarea id="request-body" style="display: none;"></textarea>
                     </div>
 
                     <div id="auth-tab" class="tab-pane">
@@ -253,8 +257,8 @@
                                 <span id="ws-status-text">Disconnected</span>
                             </div>
                             <div class="ws-send-section">
-                                <textarea id="ws-message-input" placeholder="Enter message to send..."
-                                    rows="3"></textarea>
+                                <div id="ws-message-editor" class="codemirror-wrapper ws-editor"></div>
+                                <textarea id="ws-message-input" style="display: none;"></textarea>
                                 <button class="btn btn-primary" id="ws-send-btn" disabled>
                                     <i class="fas fa-paper-plane"></i> Send Message
                                 </button>
@@ -645,6 +649,16 @@
         </div>
     </div>
 
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/javascript-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/json-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsonlint/1.6.0/jsonlint.min.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 

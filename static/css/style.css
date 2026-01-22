@@ -751,7 +751,11 @@ body.light-mode .sidebar-section-actions .icon-btn:hover {
     background: var(--card-bg);
     color: var(--text-primary);
     padding: 16px;
-    min-height: 200px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .tab-pane {
@@ -759,7 +763,39 @@ body.light-mode .sidebar-section-actions .icon-btn:hover {
 }
 
 .tab-pane.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+#body-tab.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+#body-tab .body-type-selector {
+    flex-shrink: 0;
+}
+
+#body-tab .codemirror-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#body-tab .codemirror-wrapper .CodeMirror {
+    flex: 1;
+    height: auto !important;
+    min-height: 0;
+}
+
+#body-tab .codemirror-wrapper .CodeMirror-scroll {
+    min-height: 100%;
 }
 
 /* Headers Table */
@@ -1320,6 +1356,78 @@ body.light-mode .sidebar-section {
 #response-ws-messages.active {
     display: flex;
     flex-direction: column;
+}
+
+/* CodeMirror Editor Styles */
+.codemirror-wrapper {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    width: 100%;
+}
+
+/* CodeMirror requires content-box for proper gutter/code separation */
+.CodeMirror-sizer,
+.CodeMirror-gutter,
+.CodeMirror-gutters,
+.CodeMirror-linenumber {
+    box-sizing: content-box !important;
+}
+
+.codemirror-wrapper .CodeMirror {
+    height: 100%;
+    min-height: 200px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.codemirror-wrapper.ws-editor .CodeMirror {
+    height: 100px;
+}
+
+.CodeMirror-gutters {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+.CodeMirror-linenumber {
+    color: var(--text-secondary) !important;
+    padding: 0 8px !important;
+    min-width: 20px !important;
+}
+
+.CodeMirror-cursor {
+    border-left: 2px solid var(--text-primary) !important;
+}
+
+.CodeMirror-selected {
+    background: var(--bg-tertiary) !important;
+}
+
+.CodeMirror-placeholder {
+    color: var(--text-secondary) !important;
+    opacity: 0.6;
+}
+
+.CodeMirror-hints {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+}
+
+.CodeMirror-hint {
+    color: var(--text-primary) !important;
+    padding: 4px 8px;
+}
+
+.CodeMirror-hint-active {
+    background: var(--primary-blue) !important;
+    color: white !important;
 }
 
 /* Modal Styles */
