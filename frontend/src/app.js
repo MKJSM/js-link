@@ -1726,7 +1726,7 @@ function substituteVariables(template, variables) {
     let result = template;
     Object.entries(variables).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
-        result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+        result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\\]/g, '\\$&'), 'g'), value);
     });
     return result;
 }
@@ -2917,11 +2917,16 @@ function handleBodyTypeChange(e) {
                 bodyTextarea.disabled = true;
                 break;
             case 'json':
-                bodyTextarea.placeholder = '{\n    "key": "value"\n}';
+                bodyTextarea.placeholder = `{
+    "key": "value"
+}`;
                 bodyTextarea.disabled = false;
                 break;
             case 'xml':
-                bodyTextarea.placeholder = '<?xml version="1.0"?>\n<root>\n    <element>value</element>\n</root>';
+                bodyTextarea.placeholder = `<?xml version="1.0"?>
+<root>
+    <element>value</element>
+</root>`;
                 bodyTextarea.disabled = false;
                 break;
             case 'text':
@@ -3536,3 +3541,26 @@ async function confirmImport() {
         showNotification(`Error during import: ${error.message}`, 'error');
     }
 }
+
+
+
+// Expose functions to window for HTML event handlers
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.openRequestModal = openRequestModal;
+window.saveFolder = saveFolder;
+window.saveRequestFromModal = saveRequestFromModal;
+window.saveEnvironment = saveEnvironment;
+// Expose others just in case they are used in generated HTML or console
+window.editFolder = editFolder;
+window.editRequest = editRequest;
+window.editEnvironment = editEnvironment;
+window.deleteFolder = deleteFolder;
+window.deleteRequest = deleteRequest;
+window.deleteEnvironment = deleteEnvironment;
+window.archiveFolder = archiveFolder;
+window.unarchiveFolder = unarchiveFolder;
+window.archiveRequest = archiveRequest;
+window.unarchiveRequest = unarchiveRequest;
+window.archiveEnvironment = archiveEnvironment;
+window.unarchiveEnvironment = unarchiveEnvironment;

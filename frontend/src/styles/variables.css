@@ -1,0 +1,38 @@
+/* Global Styles - Dark Theme */
+:root {
+    --primary-blue: #3b82f6;
+    --green: #10b981;
+    --purple: #8b5cf6;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --gradient-blue-purple: linear-gradient(135deg, #6366f1, #3b82f6);
+
+    /* Dark Theme (Default) */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-on-primary-bg: #ffffff;
+    --border-color: #334155;
+    --input-bg: #1e293b;
+    --card-bg: #1e293b;
+    --sidebar-bg-gradient: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+    --light-blue-bg: #1e293b;
+    --white: #ffffff;
+}
+
+body.light-mode {
+    --bg-primary: #f1f5f9;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-on-primary-bg: #0f172a;
+    --border-color: #e2e8f0;
+    --input-bg: #ffffff;
+    --card-bg: #ffffff;
+    --sidebar-bg-gradient: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    --light-blue-bg: #eff6ff;
+}

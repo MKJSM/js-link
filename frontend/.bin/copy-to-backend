@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+echo "Deploying frontend to backend..."
+
+# Ensure we are in frontend dir
+if [ ! -f "package.json" ]; then
+    echo "Error: Must run from frontend directory"
+    exit 1
+fi
+
+BACKEND_DIR=".."
+STATIC_DIR="$BACKEND_DIR/static"
+TEMPLATES_DIR="$BACKEND_DIR/templates"
+
+# Build
+npm run build
+
+# Clean assets dir to avoid accumulation
+rm -rf "$STATIC_DIR/assets"
+
+# Copy all dist content to static
+# This includes assets/ folder and any other public files
+cp -r dist/* "$STATIC_DIR/"
+
+# Move index.html to templates as index.stpl
+# We overwrite the existing index.stpl
+mv "$STATIC_DIR/index.html" "$TEMPLATES_DIR/index.stpl"
+
+echo "Frontend deployed successfully!"
