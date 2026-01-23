@@ -29,6 +29,9 @@ node_modules/
 package-lock.json
 yarn.lock
 
+# Build output
+dist/
+
 # Playwright
 test-results/
 playwright-report/

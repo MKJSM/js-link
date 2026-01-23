@@ -3,32 +3,51 @@ use sqlx::{
     Pool, Sqlite,
 };
 use std::env;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 pub type DbPool = Pool<Sqlite>;
 
+/// Returns the application data directory path.
+/// Priority: 1. JSLINK_DATA_DIR env var, 2. ~/.js-link/, 3. current directory
+pub fn get_app_dir() -> PathBuf {
+    // Check for JSLINK_DATA_DIR environment variable first
+    if let Ok(dir) = env::var("JSLINK_DATA_DIR") {
+        let path = PathBuf::from(&dir);
+        if std::fs::create_dir_all(&path).is_ok() {
+            log::info!("Using app data directory from JSLINK_DATA_DIR: {}", dir);
+            return path;
+        }
+        log::warn!("Cannot write to JSLINK_DATA_DIR: {}", dir);
+    }
+
+    // Use home directory: ~/.js-link/
+    if let Some(home_dir) = dirs::home_dir() {
+        let app_dir = home_dir.join(".js-link");
+        if std::fs::create_dir_all(&app_dir).is_ok() {
+            log::info!("Using app data directory: {}", app_dir.display());
+            return app_dir;
+        }
+        log::warn!("Cannot write to home directory");
+    }
+
+    // Fallback: current directory
+    log::warn!("Using current directory for app data");
+    PathBuf::from(".")
+}
+
 fn get_db_path() -> String {
-    // Check for DATABASE_URL environment variable first
+    // Check for DATABASE_URL environment variable first (for advanced users)
     if let Ok(url) = env::var("DATABASE_URL") {
         log::info!("Using database path from DATABASE_URL: {}", url);
         return url;
     }
 
-    // Use home directory: ~/.js-link/jslink.db
-    if let Some(home_dir) = dirs::home_dir() {
-        let app_dir = home_dir.join(".js-link");
-        if std::fs::create_dir_all(&app_dir).is_ok() {
-            let db_path = app_dir.join("jslink.db");
-            let path = format!("sqlite:{}", db_path.display());
-            log::info!("Using database at: {}", path);
-            return path;
-        }
-        log::warn!("Cannot write to home directory, using current directory");
-    }
-
-    // Fallback: current directory
-    log::warn!("Using database in current directory");
-    "sqlite:jslink.db".to_string()
+    let app_dir = get_app_dir();
+    let db_path = app_dir.join("jslink.db");
+    let path = format!("sqlite:{}", db_path.display());
+    log::info!("Using database at: {}", path);
+    path
 }
 
 pub async fn create_pool() -> Result<DbPool, sqlx::Error> {

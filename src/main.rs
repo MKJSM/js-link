@@ -59,31 +59,63 @@ async fn static_handler(Path(path): Path<String>) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() {
-    // File appender: rotate daily, store in ./logs, prefix with js-link, suffix with log
-    let file_appender = rolling::Builder::new()
-        .rotation(rolling::Rotation::DAILY)
-        .filename_prefix("js-link")
-        .filename_suffix("log")
-        .build("./logs")
-        .expect("failed to initialize rolling file appender");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    // Get the app data directory and try to create logs subdirectory
+    let app_dir = db::get_app_dir();
+    let logs_dir = app_dir.join("logs");
+    let file_logging_enabled = std::fs::create_dir_all(&logs_dir).is_ok();
 
-    // Console layer
+    // Console layer (always enabled)
     let console_layer = fmt::layer()
         .with_writer(std::io::stdout)
         .with_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()));
 
-    // File layer
-    let file_layer = fmt::layer()
-        .with_writer(non_blocking)
-        .with_ansi(false)
-        .with_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()));
+    // Try to set up file logging, fall back to console-only if it fails
+    if file_logging_enabled {
+        let file_appender = rolling::Builder::new()
+            .rotation(rolling::Rotation::DAILY)
+            .filename_prefix("js-link")
+            .filename_suffix("log")
+            .build(&logs_dir);
 
-    // Register subscriber
-    tracing_subscriber::registry()
-        .with(console_layer)
-        .with(file_layer)
-        .init();
+        match file_appender {
+            Ok(appender) => {
+                let (non_blocking, _guard) = tracing_appender::non_blocking(appender);
+                let file_layer = fmt::layer()
+                    .with_writer(non_blocking)
+                    .with_ansi(false)
+                    .with_filter(
+                        EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()),
+                    );
+
+                tracing_subscriber::registry()
+                    .with(console_layer)
+                    .with(file_layer)
+                    .init();
+
+                // Keep _guard alive for the duration of main
+                // We need to leak it to keep file logging working
+                Box::leak(Box::new(_guard));
+            }
+            Err(_) => {
+                // File appender failed, use console only
+                tracing_subscriber::registry()
+                    .with(console_layer)
+                    .init();
+                eprintln!(
+                    "Warning: Could not create file logger, logging to console only"
+                );
+            }
+        }
+    } else {
+        // Directory creation failed, use console only
+        tracing_subscriber::registry()
+            .with(console_layer)
+            .init();
+        eprintln!(
+            "Warning: Could not create logs directory at {}, logging to console only",
+            logs_dir.display()
+        );
+    }
 
     println!(
         r#"
