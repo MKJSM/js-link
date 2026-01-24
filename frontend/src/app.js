@@ -3108,7 +3108,7 @@ function getContentTypeHeader() {
 // Store current WebSocket request details for history
 let currentWsRequestDetails = null;
 
-// FIX: Added cleanup for existing connections and auth/headers support
+// Direct WebSocket connection to target URL
 function connectWebSocket() {
     const url = document.getElementById('request-url').value.trim();
 
@@ -3123,12 +3123,12 @@ function connectWebSocket() {
         return;
     }
 
-    // FIX: Close existing connection if any
+    // Close existing connection if any
     if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
         wsConnection.close();
     }
 
-    // Get headers
+    // Get headers (note: browser WebSocket API doesn't support custom headers)
     const headers = getHeaders();
 
     // Get auth details
@@ -3164,31 +3164,52 @@ function connectWebSocket() {
 
     updateWsStatus('connecting', 'Connecting...');
 
-    // Connect to our backend WebSocket proxy
-    const wsUrl = `ws://${window.location.host}/api/ws`;
-    wsConnection = new WebSocket(wsUrl);
+    // Build the WebSocket URL with basic auth if needed
+    let wsUrl = url;
+    if (authType === 'basic' && authUsername) {
+        try {
+            const urlObj = new URL(url);
+            urlObj.username = authUsername;
+            urlObj.password = authPassword || '';
+            wsUrl = urlObj.toString();
+        } catch (e) {
+            console.error('Failed to add auth to URL:', e);
+        }
+    }
+
+    // Connect directly to the target WebSocket URL
+    try {
+        wsConnection = new WebSocket(wsUrl);
+    } catch (e) {
+        showNotification('Failed to create WebSocket connection: ' + e.message, 'error');
+        updateWsStatus('disconnected', 'Connection failed');
+        return;
+    }
 
     wsConnection.onopen = () => {
-        // Send connect message to proxy with headers and auth
-        const connectMessage = {
-            type: 'connect',
-            url: url,
-            headers: Object.keys(headers).length > 0 ? headers : null,
-            auth_type: authType !== 'none' ? authType : null,
-            auth_token: authToken,
-            auth_username: authUsername,
-            auth_password: authPassword
-        };
-        wsConnection.send(JSON.stringify(connectMessage));
+        wsConnected = true;
+        updateWsStatus('connected', `Connected to ${url}`);
+        updateWsButtonVisibility();
+        addWsMessage('info', `Connected to ${url}`);
+
+        // Add to execution history when successfully connected
+        if (currentWsRequestDetails) {
+            addToExecutionHistory(currentWsRequestDetails);
+            // Save the WebSocket request if it has an ID
+            if (currentRequestId) {
+                saveRequest();
+            }
+        }
     };
 
     wsConnection.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            handleWsServerMessage(msg);
-        } catch (e) {
-            console.error('Failed to parse WebSocket message:', e);
+        // Handle direct messages from the WebSocket
+        let data = event.data;
+        if (data instanceof Blob) {
+            // Handle binary data
+            data = `[Binary: ${data.size} bytes]`;
         }
+        addWsMessage('received', data);
     };
 
     wsConnection.onerror = (error) => {
@@ -3196,59 +3217,29 @@ function connectWebSocket() {
         updateWsStatus('disconnected', 'Connection error');
         wsConnected = false;
         updateWsButtonVisibility();
-        addWsMessage('error', 'Connection error');
+        addWsMessage('error', 'Connection error - check console for details');
     };
 
-    wsConnection.onclose = () => {
-        updateWsStatus('disconnected', 'Disconnected');
+    wsConnection.onclose = (event) => {
+        const reason = event.reason || (event.wasClean ? 'Connection closed' : 'Connection lost');
+        updateWsStatus('disconnected', reason);
         wsConnected = false;
         updateWsButtonVisibility();
+        if (!event.wasClean) {
+            addWsMessage('info', `Disconnected: ${reason} (code: ${event.code})`);
+        }
     };
-}
-
-function handleWsServerMessage(msg) {
-    switch (msg.type) {
-        case 'connected':
-            wsConnected = true;
-            updateWsStatus('connected', `Connected to ${msg.url}`);
-            updateWsButtonVisibility();
-            addWsMessage('info', `Connected to ${msg.url}`);
-            // Add to execution history when successfully connected
-            if (currentWsRequestDetails) {
-                addToExecutionHistory(currentWsRequestDetails);
-                // Save the WebSocket request if it has an ID
-                if (currentRequestId) {
-                    saveRequest();
-                }
-            }
-            break;
-        case 'disconnected':
-            wsConnected = false;
-            updateWsStatus('disconnected', msg.reason || 'Disconnected');
-            updateWsButtonVisibility();
-            addWsMessage('info', msg.reason || 'Disconnected');
-            break;
-        case 'message':
-            addWsMessage(msg.direction, msg.data);
-            break;
-        case 'error':
-            addWsMessage('error', msg.message);
-            break;
-        case 'info':
-            addWsMessage('info', msg.message);
-            break;
-    }
 }
 
 function disconnectWebSocket() {
     if (wsConnection) {
-        wsConnection.send(JSON.stringify({ type: 'disconnect' }));
         wsConnection.close();
         wsConnection = null;
     }
     wsConnected = false;
     updateWsStatus('disconnected', 'Disconnected');
     updateWsButtonVisibility();
+    addWsMessage('info', 'Disconnected');
 }
 
 function sendWebSocketMessage() {
@@ -3264,10 +3255,11 @@ function sendWebSocketMessage() {
         return;
     }
 
-    wsConnection.send(JSON.stringify({
-        type: 'send',
-        message: message
-    }));
+    // Send the message directly to the WebSocket
+    wsConnection.send(message);
+
+    // Show the sent message in the UI
+    addWsMessage('sent', message);
 
     // Clear the editor
     if (wsMessageEditor) {
